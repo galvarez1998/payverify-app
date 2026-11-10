@@ -1,33 +1,21 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { getAuthenticatedContext } from "@/backend/auth/context";
+import { listCompanyMemberships, createCompanyWithOwner } from "@/backend/companies/service";
 
 export const dynamic = "force-dynamic";
 
-async function getAuthenticatedClient() {
-  if (!isSupabaseConfigured()) return { response: NextResponse.json({ error: "backend_not_configured" }, { status: 503 }) };
-  const supabase = await createSupabaseServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return { response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
-  return { supabase, user };
-}
-
 export async function GET() {
-  const auth = await getAuthenticatedClient();
-  if ("response" in auth) return auth.response;
+  const auth = await getAuthenticatedContext();
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { data, error } = await auth.supabase
-    .from("company_memberships")
-    .select("company_id, role, status, companies(id, name, city, status)")
-    .eq("user_id", auth.user.id)
-    .eq("status", "active");
-
+  const { data, error } = await listCompanyMemberships(auth.supabase, auth.user.id);
   if (error) return NextResponse.json({ error: "company_lookup_failed" }, { status: 500 });
   return NextResponse.json({ companies: data ?? [] });
 }
 
 export async function POST(request: Request) {
-  const auth = await getAuthenticatedClient();
-  if ("response" in auth) return auth.response;
+  const auth = await getAuthenticatedContext();
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   let payload: unknown;
   try {
@@ -41,7 +29,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_company_name", message: "El nombre debe tener entre 2 y 120 caracteres." }, { status: 400 });
   }
 
-  const { data, error } = await auth.supabase.rpc("create_company_with_owner", { company_name: name });
+  const { data, error } = await createCompanyWithOwner(auth.supabase, name);
   if (error) return NextResponse.json({ error: "company_creation_failed" }, { status: 400 });
   return NextResponse.json({ company_id: data }, { status: 201 });
 }

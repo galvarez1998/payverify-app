@@ -1,21 +1,14 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { getAuthenticatedContext } from "@/backend/auth/context";
+import { listCompanyMemberships } from "@/backend/companies/service";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if (!isSupabaseConfigured()) return NextResponse.json({ error: "backend_not_configured" }, { status: 503 });
+  const auth = await getAuthenticatedContext();
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const supabase = await createSupabaseServerClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
-  const { data: memberships, error } = await supabase
-    .from("company_memberships")
-    .select("company_id, role, status, companies(id, name, city, status)")
-    .eq("user_id", user.id)
-    .eq("status", "active");
-
+  const { data, error } = await listCompanyMemberships(auth.supabase, auth.user.id);
   if (error) return NextResponse.json({ error: "membership_lookup_failed" }, { status: 500 });
-  return NextResponse.json({ user: { id: user.id, email: user.email }, memberships });
+  return NextResponse.json({ user: { id: auth.user.id, email: auth.user.email }, memberships: data ?? [] });
 }

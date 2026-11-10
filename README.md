@@ -1,33 +1,25 @@
 # PayVerify Demo SaaS
 
-PayVerify es una demo SaaS para la verificación inteligente de transferencias bancarias en negocios de Colombia. El frontend y los flujos locales funcionan en modo demo; el backend PostgreSQL/Supabase puede activarse con las instrucciones de [`docs/backend.md`](docs/backend.md).
+Demo fintech para conciliación y validación de transferencias en comercios colombianos. Proyecto Next.js con separación por capas frontend/backend y soporte opcional de Supabase/PostgreSQL.
 
-## Stack
-- Next.js 14 App Router
-- TypeScript
-- Tailwind CSS y Lucide Icons
-- Supabase Auth + PostgreSQL/RLS (opcional, requiere un proyecto y variables propios)
+## Carpetas
+- `src/frontend`: componentes visuales, datos de demostración y utilidades de UI.
+- `src/backend`: sesión, configuración server-side y casos de uso de API.
+- `src/app`: rutas Next.js y adaptadores HTTP necesarios para App Router.
+- `supabase/migrations`: esquema PostgreSQL y políticas RLS.
 
-## Ejecutar la demo
+Consulta [`docs/folder-structure.md`](docs/folder-structure.md) para el detalle de límites entre capas y [`docs/backend.md`](docs/backend.md) para activar Supabase.
+
+## Ejecutar
 ```bash
 npm install
 npm run dev
 ```
-Abre `http://localhost:3000`.
+Abrir `http://localhost:3000`.
 
-## Perfiles de presentación
-- Superadministrador demo: `admin@payverify.co` / `PayVerify2025!`
+## Modo demo
+Los perfiles visibles en el login sirven solo para presentar la interfaz; no autentican las API ni sustituyen Supabase Auth.
+- Superadmin demo: `admin@payverify.co` / `PayVerify2025!`
 - Empresa demo: `empresa@elbuen-sabor.com` / `Demo123!`
 
-Estos perfiles son únicamente demostrativos y no autentican las API del backend.
-
-## Backend y base de datos
-Consulta [`docs/backend.md`](docs/backend.md) para crear el proyecto Supabase, aplicar la migración multiempresa y probar `/api/health`, `/api/me` y `/api/companies`.
-
-## Integraciones todavía no conectadas
-- OAuth Gmail/Outlook, Gmail API y Microsoft Graph
-- OCR externo
-- WhatsApp/Meta
-- Conexiones bancarias
-
-Los estados y resultados del frontend son simulados; no constituyen confirmaciones bancarias reales.
+Los correos bancarios, las integraciones OAuth, OCR y confirmaciones siguen simulados/no conectados. No son confirmaciones bancarias reales.
