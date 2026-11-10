@@ -1,61 +1,108 @@
-import { AppShell } from "@/components/app-shell";
-import { Card } from "@/components/ui";
-import { initialTransactions } from "@/lib/demo-data";
-import { formatCOP } from "@/lib/utils";
-import { Camera, CheckCheck, Download, ImageIcon } from "lucide-react";
+"use client";
 
-export default function ComprobantesPage() {
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { ArrowRight, Building2, Eye, EyeOff, Lock, UserCircle2 } from "lucide-react";
+import { profiles } from "@/lib/demo-data";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const [profile, setProfile] = useState(profiles[0]);
+
+  const handleLogin = () => {
+    router.push(profile.role === "superadmin" ? "/superadmin" : "/dashboard");
+  };
+
   return (
-    <AppShell active="Comprobantes">
-      <div className="space-y-6">
-        <Card title="Carga de comprobantes" description="OCR simulado y validación del pago">
-          <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6">
-              <div className="flex h-52 items-center justify-center rounded-2xl bg-white">
-                <div className="text-center">
-                  <ImageIcon className="mx-auto h-12 w-12 text-slate-400" />
-                  <div className="mt-3 text-sm text-slate-600">Arrastra un comprobante o súbelo desde tu dispositivo</div>
-                  <button className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"><Camera className="h-4 w-4" />Adjuntar</button>
-                </div>
-              </div>
+    <div className="min-h-screen bg-slate-100 p-4 md:p-8">
+      <div className="mx-auto grid max-w-6xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft md:grid-cols-2">
+        <div className="bg-slate-950 p-8 text-white md:p-10">
+          <div className="mb-8 flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand-500 text-lg font-bold">P</div>
+            <div>
+              <div className="text-2xl font-black">PayVerify</div>
+              <div className="text-[10px] uppercase tracking-[0.25em] text-slate-300">Monitor de pagos</div>
             </div>
+          </div>
 
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Monto extraído</div><div className="mt-2 text-xl font-bold text-slate-900">{formatCOP(150000)}</div></div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Banco</div><div className="mt-2 text-xl font-bold text-slate-900">Davivienda</div></div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Fecha</div><div className="mt-2 text-xl font-bold text-slate-900">03/11/2026</div></div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Responsable</div><div className="mt-2 text-xl font-bold text-slate-900">Carlos Pérez</div></div>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
-                <div className="mb-2 flex items-center justify-between text-sm text-slate-600"><span>Referencia</span><span className="font-medium text-slate-900">REF-1550</span></div>
-                <div className="mb-2 flex items-center justify-between text-sm text-slate-600"><span>Resultado</span><span className="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-700">CONFIRMADO</span></div>
-                <div className="flex items-center justify-between text-sm text-slate-600"><span>Validación</span><span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-700"><CheckCheck className="h-3.5 w-3.5" /> Entorno demo</span></div>
+          <div className="space-y-6">
+            <div>
+              <div className="text-sm uppercase tracking-[0.2em] text-brand-200">Demo SaaS</div>
+              <h1 className="mt-3 text-3xl font-bold leading-tight">Accede a tu entorno de verificación financiera.</h1>
+            </div>
+            <p className="text-slate-300">Simulación de comprobantes, sucursales, empleados, riesgos y suscripción con aislamiento por empresa.</p>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm text-slate-300"><Building2 className="h-4 w-4" />Perfiles demo</div>
+              <div className="space-y-2">
+                {profiles.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setProfile(item)}
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left ${profile.id === item.id ? "border-brand-500 bg-brand-500/10" : "border-slate-800 bg-slate-900"}`}
+                  >
+                    <div>
+                      <div className="font-medium text-white">{item.company}</div>
+                      <div className="text-xs text-slate-400">{item.role}</div>
+                    </div>
+                    <div className="text-xs text-slate-300">{item.email}</div>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card title="Comprobantes recientes" description="Últimos documentos cargados">
-          <div className="grid gap-4 md:grid-cols-3">
-            {initialTransactions.slice(0, 3).map((item) => (
-              <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="font-semibold text-slate-800">{item.reference}</div>
-                  <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${item.status === "confirmado" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{item.status}</span>
-                </div>
-                <div className="space-y-2 text-sm text-slate-600">
-                  <div className="flex items-center justify-between"><span>Monto</span><span className="font-medium text-slate-900">{formatCOP(item.amount)}</span></div>
-                  <div className="flex items-center justify-between"><span>Fecha</span><span>{item.date}</span></div>
-                  <div className="flex items-center justify-between"><span>Empleado</span><span>{item.employee}</span></div>
-                </div>
-                <button className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700"><Download className="h-3.5 w-3.5" />Ver detalle</button>
+        <div className="flex items-center justify-center p-6 md:p-10">
+          <div className="w-full max-w-md">
+            <div className="mb-8">
+              <div className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-600">Inicio de sesión</div>
+              <h2 className="mt-3 text-3xl font-bold text-slate-900">Bienvenido</h2>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Perfil seleccionado</label>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">{profile.company} · {profile.name}</div>
               </div>
-            ))}
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Correo electrónico</label>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3">
+                  <UserCircle2 className="h-4 w-4 text-slate-500" />
+                  <input defaultValue={profile.email} className="w-full bg-transparent py-3 text-sm text-slate-800 outline-none" />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Contraseña</label>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3">
+                  <Lock className="h-4 w-4 text-slate-500" />
+                  <input type={showPassword ? "text" : "password"} defaultValue={profile.password} className="w-full bg-transparent py-3 text-sm text-slate-800 outline-none" />
+                  <button type="button" onClick={() => setShowPassword((prev) => !prev)} className="p-1 text-slate-500">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-sm text-slate-600">
+                <label className="flex items-center gap-2"><input type="checkbox" />Recordarme</label>
+                <a href="#" className="text-brand-600">¿Olvidaste tu contraseña?</a>
+              </div>
+
+              <button onClick={handleLogin} className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-soft">
+                Ingresar <ArrowRight className="h-4 w-4" />
+              </button>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                <div className="font-medium text-slate-800">Credenciales demo</div>
+                <div className="mt-2">Email: {profile.email}</div>
+                <div>Contraseña: {profile.password}</div>
+              </div>
+            </div>
           </div>
-        </Card>
+        </div>
       </div>
-    </AppShell>
+    </div>
   );
 }

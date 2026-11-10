@@ -1,36 +1,63 @@
-# PayVerify Demo SaaS
+CREATE TABLE companies (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL,
+  owner TEXT,
+  city TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  plan TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-PayVerify es una demo funcional de una plataforma SaaS enfocada en la verificación inteligente de transferencias bancarias para negocios en Colombia.
+CREATE TABLE branches (
+  id UUID PRIMARY KEY,
+  company_id UUID REFERENCES companies(id),
+  name TEXT NOT NULL,
+  city TEXT,
+  manager TEXT,
+  active BOOLEAN DEFAULT TRUE
+);
 
-## Stack
-- Next.js 14
-- TypeScript
-- Tailwind CSS
-- Lucide Icons
+CREATE TABLE employees (
+  id UUID PRIMARY KEY,
+  company_id UUID REFERENCES companies(id),
+  name TEXT NOT NULL,
+  role TEXT,
+  branch TEXT,
+  email TEXT,
+  active BOOLEAN DEFAULT TRUE
+);
 
-## Instalación
+CREATE TABLE payment_proofs (
+  id UUID PRIMARY KEY,
+  company_id UUID REFERENCES companies(id),
+  employee_id UUID REFERENCES employees(id),
+  amount NUMERIC(12,2),
+  bank TEXT,
+  account TEXT,
+  reference TEXT,
+  receipt_date TIMESTAMPTZ,
+  source TEXT,
+  verification_status TEXT,
+  reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-```bash
-npm install
-npm run dev
-```
+CREATE TABLE verification_events (
+  id UUID PRIMARY KEY,
+  company_id UUID REFERENCES companies(id),
+  proof_id UUID REFERENCES payment_proofs(id),
+  status TEXT NOT NULL,
+  reason TEXT,
+  checked_by TEXT,
+  checked_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-Abre `http://localhost:3000`.
-
-## Credenciales demo
-
-- Superadministrador: `admin@payverify.co` / `PayVerify2025!`
-- Empresa: `empresa@elbuen-sabor.com` / `Demo123!`
-
-## Funcionalidades implementadas
-- Landing page comercial
-- Login con perfiles demo
-- Dashboard empresarial
-- Verificaciones, comprobantes, sucursales y empleados
-- WhatsApp demo
-- Suscripción y planes
-- Panel de superadministrador
-- Datos y arquitectura listos para conexión con servicios reales
-
-## Importante
-Todos los resultados mostrados están marcados como entorno de demostración y no representan confirmaciones bancarias reales.
+CREATE TABLE subscription_plans (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL,
+  monthly_price NUMERIC(12,2),
+  verification_limit INTEGER,
+  branches_limit INTEGER,
+  employees_limit INTEGER,
+  active BOOLEAN DEFAULT TRUE
+);
