@@ -1,0 +1,3 @@
+export function formatCOP(value: number): string { return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value); }
+export function statusLabel(status: string): string { return ({ confirmado: "Confirmado", rechazado: "Rechazado", pendiente: "Pendiente", "no-identificado": "No identificado" } as Record<string, string>)[status] ?? status; }
+export function statusClass(status: string): string { return ({ confirmado: "bg-emerald-100 text-emerald-700", rechazado: "bg-rose-100 text-rose-700", pendiente: "bg-amber-100 text-amber-700", "no-identificado": "bg-slate-200 text-slate-700" } as Record<string, string>)[status] ?? "bg-slate-100 text-slate-700"; }
