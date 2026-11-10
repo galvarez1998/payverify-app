@@ -1,63 +1,87 @@
-CREATE TABLE companies (
-  id UUID PRIMARY KEY,
-  name TEXT NOT NULL,
-  owner TEXT,
-  city TEXT,
-  status TEXT NOT NULL DEFAULT 'active',
-  plan TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+# PayVerify Demo SaaS
 
-CREATE TABLE branches (
-  id UUID PRIMARY KEY,
-  company_id UUID REFERENCES companies(id),
-  name TEXT NOT NULL,
-  city TEXT,
-  manager TEXT,
-  active BOOLEAN DEFAULT TRUE
-);
+PayVerify es una demo funcional de plataforma SaaS enfocada en la verificación inteligente de transferencias bancarias para negocios en Colombia.
 
-CREATE TABLE employees (
-  id UUID PRIMARY KEY,
-  company_id UUID REFERENCES companies(id),
-  name TEXT NOT NULL,
-  role TEXT,
-  branch TEXT,
-  email TEXT,
-  active BOOLEAN DEFAULT TRUE
-);
+## Vision general
+La aplicación simula un entorno fintech multiempresa con:
+- dashboard ejecutivo para empresas y superadmin
+- gestión de sucursales y empleados
+- módulos de comprobantes, verificación y movimientos
+- integración WhatsApp en modo demo
+- planes y suscripción
+- datos aislados por empresa para una arquitectura multi-tenant
 
-CREATE TABLE payment_proofs (
-  id UUID PRIMARY KEY,
-  company_id UUID REFERENCES companies(id),
-  employee_id UUID REFERENCES employees(id),
-  amount NUMERIC(12,2),
-  bank TEXT,
-  account TEXT,
-  reference TEXT,
-  receipt_date TIMESTAMPTZ,
-  source TEXT,
-  verification_status TEXT,
-  reason TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+## Stack
+- Next.js 14
+- TypeScript
+- Tailwind CSS
+- Lucide Icons
 
-CREATE TABLE verification_events (
-  id UUID PRIMARY KEY,
-  company_id UUID REFERENCES companies(id),
-  proof_id UUID REFERENCES payment_proofs(id),
-  status TEXT NOT NULL,
-  reason TEXT,
-  checked_by TEXT,
-  checked_at TIMESTAMPTZ DEFAULT NOW()
-);
+## Instalación
 
-CREATE TABLE subscription_plans (
-  id UUID PRIMARY KEY,
-  name TEXT NOT NULL,
-  monthly_price NUMERIC(12,2),
-  verification_limit INTEGER,
-  branches_limit INTEGER,
-  employees_limit INTEGER,
-  active BOOLEAN DEFAULT TRUE
-);
+```bash
+npm install
+npm run dev
+```
+
+Abrir: http://localhost:3000
+
+## Credenciales demo
+
+- Superadministrador: `admin@payverify.co` / `PayVerify2025!`
+- Empresa demo: `empresa@elbuen-sabor.com` / `Demo123!`
+
+## Funcionalidades implementadas
+- Landing page comercial con CTA y planes
+- Login con perfiles demo y selección visual
+- Dashboard empresarial con KPIs, alertas y gráficos simples
+- Módulo de comprobantes con procesamiento simulado
+- Historial de verificaciones con estados: confirmado, rechazado, pendiente y no identificado
+- Configuración de WhatsApp con mensajes mock y respuesta de PayVerify
+- Sucursales y empleados
+- Suscripción y cambio de plan en modo demo
+- Panel de superadministrador con métricas globales
+- Arquitectura documentada para Supabase/PostgreSQL
+
+## Importante
+Todos los resultados de verificación están marcados como demostración y no sustituyen una confirmación bancaria real.
+
+## Estructura del proyecto
+
+```text
+payverify-app/
+├─ src/
+│  ├─ app/
+│  │  ├─ dashboard/
+│  │  ├─ comprobantes/
+│  │  ├─ verificaciones/
+│  │  ├─ sucursales/
+│  │  ├─ empleados/
+│  │  ├─ whatsapp/
+│  │  ├─ suscripcion/
+│  │  ├─ superadmin/
+│  │  ├─ configuracion/
+│  │  ├─ globals.css
+│  │  ├─ layout.tsx
+│  │  ├─ loading.tsx
+│  │  ├─ not-found.tsx
+│  │  └─ page.tsx
+│  ├─ components/
+│  │  ├─ app-shell.tsx
+│  │  └─ ui.tsx
+│  └─ lib/
+│     ├─ demo-data.ts
+│     └─ utils.ts
+├─ docs/
+│  ├─ architecture.md
+│  └─ schema.sql
+├─ .env.example
+├─ .eslintrc.json
+├─ next-env.d.ts
+├─ next.config.mjs
+├─ package.json
+├─ postcss.config.js
+├─ tailwind.config.ts
+├─ tsconfig.json
+└─ README.md
+```
