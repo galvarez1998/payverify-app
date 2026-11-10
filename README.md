@@ -1,87 +1,33 @@
 # PayVerify Demo SaaS
 
-PayVerify es una demo funcional de plataforma SaaS enfocada en la verificación inteligente de transferencias bancarias para negocios en Colombia.
-
-## Vision general
-La aplicación simula un entorno fintech multiempresa con:
-- dashboard ejecutivo para empresas y superadmin
-- gestión de sucursales y empleados
-- módulos de comprobantes, verificación y movimientos
-- integración WhatsApp en modo demo
-- planes y suscripción
-- datos aislados por empresa para una arquitectura multi-tenant
+PayVerify es una demo SaaS para la verificación inteligente de transferencias bancarias en negocios de Colombia. El frontend y los flujos locales funcionan en modo demo; el backend PostgreSQL/Supabase puede activarse con las instrucciones de [`docs/backend.md`](docs/backend.md).
 
 ## Stack
-- Next.js 14
+- Next.js 14 App Router
 - TypeScript
-- Tailwind CSS
-- Lucide Icons
+- Tailwind CSS y Lucide Icons
+- Supabase Auth + PostgreSQL/RLS (opcional, requiere un proyecto y variables propios)
 
-## Instalación
-
+## Ejecutar la demo
 ```bash
 npm install
 npm run dev
 ```
+Abre `http://localhost:3000`.
 
-Abrir: http://localhost:3000
-
-## Credenciales demo
-
-- Superadministrador: `admin@payverify.co` / `PayVerify2025!`
+## Perfiles de presentación
+- Superadministrador demo: `admin@payverify.co` / `PayVerify2025!`
 - Empresa demo: `empresa@elbuen-sabor.com` / `Demo123!`
 
-## Funcionalidades implementadas
-- Landing page comercial con CTA y planes
-- Login con perfiles demo y selección visual
-- Dashboard empresarial con KPIs, alertas y gráficos simples
-- Módulo de comprobantes con procesamiento simulado
-- Historial de verificaciones con estados: confirmado, rechazado, pendiente y no identificado
-- Configuración de WhatsApp con mensajes mock y respuesta de PayVerify
-- Sucursales y empleados
-- Suscripción y cambio de plan en modo demo
-- Panel de superadministrador con métricas globales
-- Arquitectura documentada para Supabase/PostgreSQL
+Estos perfiles son únicamente demostrativos y no autentican las API del backend.
 
-## Importante
-Todos los resultados de verificación están marcados como demostración y no sustituyen una confirmación bancaria real.
+## Backend y base de datos
+Consulta [`docs/backend.md`](docs/backend.md) para crear el proyecto Supabase, aplicar la migración multiempresa y probar `/api/health`, `/api/me` y `/api/companies`.
 
-## Estructura del proyecto
+## Integraciones todavía no conectadas
+- OAuth Gmail/Outlook, Gmail API y Microsoft Graph
+- OCR externo
+- WhatsApp/Meta
+- Conexiones bancarias
 
-```text
-payverify-app/
-├─ src/
-│  ├─ app/
-│  │  ├─ dashboard/
-│  │  ├─ comprobantes/
-│  │  ├─ verificaciones/
-│  │  ├─ sucursales/
-│  │  ├─ empleados/
-│  │  ├─ whatsapp/
-│  │  ├─ suscripcion/
-│  │  ├─ superadmin/
-│  │  ├─ configuracion/
-│  │  ├─ globals.css
-│  │  ├─ layout.tsx
-│  │  ├─ loading.tsx
-│  │  ├─ not-found.tsx
-│  │  └─ page.tsx
-│  ├─ components/
-│  │  ├─ app-shell.tsx
-│  │  └─ ui.tsx
-│  └─ lib/
-│     ├─ demo-data.ts
-│     └─ utils.ts
-├─ docs/
-│  ├─ architecture.md
-│  └─ schema.sql
-├─ .env.example
-├─ .eslintrc.json
-├─ next-env.d.ts
-├─ next.config.mjs
-├─ package.json
-├─ postcss.config.js
-├─ tailwind.config.ts
-├─ tsconfig.json
-└─ README.md
-```
+Los estados y resultados del frontend son simulados; no constituyen confirmaciones bancarias reales.
