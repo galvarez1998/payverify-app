@@ -1,17 +1,66 @@
-import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Card, Metric } from "@/components/ui";
-import { initialTransactions, initialCompanies } from "@/lib/demo-data";
-import { formatCOP, statusClass, statusLabel } from "@/lib/utils";
+import { getAuthenticatedContext } from "@/backend/auth/context";
+import { getActiveCompanyForUser, getCompanyDashboardSummary } from "@/backend/companies/service";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const auth = await getAuthenticatedContext();
+
+  if (!auth.ok) {
+    return (
+      <AppShell active="Dashboard">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">Debes iniciar sesión para ver el dashboard.</div>
+      </AppShell>
+    );
+  }
+
+  const membership = await getActiveCompanyForUser(auth.supabase, auth.user.id);
+  const companyId = membership.data?.company_id;
+
+  if (!companyId) {
+    return (
+      <AppShell active="Dashboard">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">No tienes una empresa activa asociada a esta sesión.</div>
+      </AppShell>
+    );
+  }
+
+  const summary = await getCompanyDashboardSummary(auth.supabase, companyId);
+  const verificationCounts = summary.verificationStatuses.reduce<Record<string, number>>((acc, item) => {
+    const status = String(item.status ?? "pending").toLowerCase();
+    acc[status] = (acc[status] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const totalIncome = summary.movementRows.reduce((sum, item) => sum + Number(item.amount_cop ?? 0), 0);
+  const movementByDay = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    const label = new Intl.DateTimeFormat("es-CO", { weekday: "short" }).format(date);
+    const value = summary.movementRows.reduce((sum, movement) => {
+      if (!movement.occurred_at) return sum;
+      const occurred = new Date(movement.occurred_at);
+      return occurred.toDateString() === date.toDateString() ? sum + Number(movement.amount_cop ?? 0) : sum;
+    }, 0);
+
+    return { label, value };
+  });
+
+  const maxMovement = Math.max(...movementByDay.map((day) => day.value), 1);
+  const recentActivity = [
+    { title: "Verificaciones confirmadas", detail: `${verificationCounts.confirmed ?? 0} eventos aceptados` },
+    { title: "Pendientes de revisión", detail: `${verificationCounts.pending ?? 0} esperando validación` },
+    { title: "Movimientos bancarios", detail: `${summary.movementRows.length} registros en la base` },
+    { title: "Ingresos estimados", detail: `${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(totalIncome)}` },
+  ];
+
   const metrics = [
-    { label: "Verificaciones del mes", value: "1.840", note: "Total del mes", color: "blue" },
-    { label: "Pagos confirmados", value: "1.220", note: "Validaciones exitosas", color: "green" },
-    { label: "Pagos rechazados", value: "210", note: "Casos con diferencia", color: "rose" },
-    { label: "Pendientes", value: "160", note: "Requieren revisión", color: "amber" },
-    { label: "No identificados", value: "54", note: "Sin coincidencia", color: "gray" },
-  ] as const;
+    { label: "Verificaciones", value: String(summary.verificationStatuses.length), note: "Totales registradas", color: "blue" as const },
+    { label: "Empleados", value: String(summary.employeesCount), note: "Activos en la empresa", color: "green" as const },
+    { label: "Sucursales", value: String(summary.branchesCount), note: "Puntos de venta", color: "amber" as const },
+    { label: "Ingresos", value: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(totalIncome), note: "En movimientos reales", color: "green" as const },
+    { label: "Pendientes", value: String(verificationCounts.pending ?? 0), note: "Esperando revisión", color: "amber" as const },
+  ];
 
   return (
     <AppShell active="Dashboard">
@@ -21,23 +70,25 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-          <Card title="Transacciones por día" description="Rendimiento mensual en COP">
+          <Card title="Movimientos por día" description="Rendimiento real de la empresa en COP">
             <div className="flex h-52 items-end gap-3">
-              {[30, 48, 52, 62, 76, 88, 72].map((height, index) => (
-                <div key={index} className="flex-1">
-                  <div className="rounded-t-2xl bg-gradient-to-t from-brand-600 to-brand-300" style={{ height: `${height}%` }} />
-                  <div className="mt-2 text-center text-xs text-slate-500">{["L", "M", "M", "J", "V", "S", "D"][index]}</div>
+              {movementByDay.map((day) => (
+                <div key={day.label} className="flex flex-1 flex-col items-center">
+                  <div className="flex h-full w-full items-end justify-center">
+                    <div className="w-full rounded-t-2xl bg-gradient-to-t from-brand-600 to-brand-300" style={{ height: `${Math.max((day.value / maxMovement) * 100, day.value > 0 ? 12 : 4)}%` }} />
+                  </div>
+                  <div className="mt-2 text-center text-xs text-slate-500">{day.label}</div>
                 </div>
               ))}
             </div>
           </Card>
 
-          <Card title="Alertas de fraude" description="Eventos críticos del entorno demo">
+          <Card title="Alertas de negocio" description="Eventos relevantes del negocio">
             <div className="space-y-3">
               {[
-                { title: "Referencias duplicadas", detail: "3 casos detectados" },
-                { title: "Monto inconsistente", detail: "2 discrepancias OCR" },
-                { title: "Cuenta no coincidente", detail: "1 revisión de auditoría" },
+                { title: "Referencias duplicadas", detail: `${verificationCounts.rejected ?? 0} casos detectados` },
+                { title: "Pendientes de revisión", detail: `${verificationCounts.pending ?? 0} elementos abiertos` },
+                { title: "Confirmadas", detail: `${verificationCounts.confirmed ?? 0} validaciones aceptadas` },
               ].map((item) => (
                 <div key={item.title} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <div>
@@ -53,15 +104,13 @@ export default function DashboardPage() {
 
         <Card title="Actividad reciente" description="Últimos eventos del negocio">
           <div className="space-y-3">
-            {[
-              "Se validó una transferencia de $150.000 para el restaurante.",
-              "Se detectó diferencia de monto en una referencia duplicada.",
-              "Se actualizó el acceso del módulo WhatsApp para la sucursal Norte.",
-              "Quedan 110 verificaciones disponibles en el plan actual.",
-            ].map((item) => (
-              <div key={item} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            {recentActivity.map((item) => (
+              <div key={item.title} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div className="mt-1 h-2.5 w-2.5 rounded-full bg-brand-500" />
-                <div className="text-sm text-slate-600">{item}</div>
+                <div>
+                  <div className="font-medium text-slate-800">{item.title}</div>
+                  <div className="text-sm text-slate-600">{item.detail}</div>
+                </div>
               </div>
             ))}
           </div>
