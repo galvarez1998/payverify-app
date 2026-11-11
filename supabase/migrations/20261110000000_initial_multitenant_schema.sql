@@ -213,7 +213,19 @@ alter table public.bank_movements enable row level security;
 alter table public.verification_events enable row level security;
 alter table public.audit_logs enable row level security;
 
-create policy "profile_read_self_or_platform_admin" on public.user_profiles for select to authenticated using (user_id = auth.uid() or public.is_platform_admin());
+create policy "profile_read_self_or_platform_admin" on public.user_profiles for select to authenticated using (
+  user_id = auth.uid() or public.is_platform_admin() or exists (
+    select 1
+    from public.company_memberships cm
+    where cm.user_id = public.user_profiles.user_id
+      and cm.status = 'active'
+      and cm.company_id in (
+        select cm2.company_id
+        from public.company_memberships cm2
+        where cm2.user_id = auth.uid() and cm2.status = 'active'
+      )
+  )
+);
 create policy "companies_read_member" on public.companies for select to authenticated using (public.is_platform_admin() or exists (select 1 from public.company_memberships m where m.company_id = id and m.user_id = auth.uid() and m.status = 'active'));
 create policy "companies_update_admin" on public.companies for update to authenticated using (public.has_company_role(id, array['company_admin']::public.company_role[])) with check (public.has_company_role(id, array['company_admin']::public.company_role[]));
 create policy "memberships_read_own_or_admin" on public.company_memberships for select to authenticated using (user_id = auth.uid() or public.has_company_role(company_id, array['company_admin']::public.company_role[]));

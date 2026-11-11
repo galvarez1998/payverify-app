@@ -1,0 +1,1 @@
+select user_id, display_name from public.user_profiles limit 10;

@@ -1,13 +1,85 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
-import { ArrowRight, Building2, Eye, EyeOff, Lock, UserCircle2 } from "lucide-react";
-import { profiles } from "@/lib/demo-data";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Eye, EyeOff, Lock, UserCircle2 } from "lucide-react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+
+function normalizeRole(role?: string | null) {
+  return typeof role === "string" ? role.toLowerCase().replace(/[-\s]+/g, "_") : "";
+}
+
+async function resolveUserHomeRoute(supabase: ReturnType<typeof createSupabaseBrowserClient>, userId: string, role?: string | null) {
+  const normalizedRole = normalizeRole(role);
+
+  if (normalizedRole === "superadmin") {
+    return "/superadmin";
+  }
+
+  const { data: membershipRows } = await supabase.from("company_memberships").select("company_id, status").eq("user_id", userId).eq("status", "active");
+  const hasActiveMembership = (membershipRows ?? []).length > 0;
+
+  return hasActiveMembership ? "/dashboard" : "/login";
+}
 
 export default function LoginPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [profile, setProfile] = useState(profiles[0]);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) return;
+
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+      if (!user) return;
+
+      const targetRoute = await resolveUserHomeRoute(supabase, user.id, user.user_metadata?.role ?? user.app_metadata?.role);
+      if (targetRoute !== "/login") {
+        router.replace(targetRoute);
+      }
+    });
+  }, [router]);
+
+  const handleLogin = async () => {
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
+
+      const user = data.user;
+      if (!user) {
+        setError("No se pudo recuperar el usuario autenticado.");
+        return;
+      }
+
+      const targetRoute = await resolveUserHomeRoute(supabase, user.id, user.user_metadata?.role ?? user.app_metadata?.role);
+
+      if (targetRoute === "/login") {
+        setError("Tu cuenta no está asociada a una empresa activa.");
+        return;
+      }
+
+      router.push(targetRoute);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "No se pudo iniciar sesión.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 p-4 md:p-8">
@@ -23,29 +95,10 @@ export default function LoginPage() {
 
           <div className="space-y-6">
             <div>
-              <div className="text-sm uppercase tracking-[0.2em] text-brand-200">Demo SaaS</div>
-              <h1 className="mt-3 text-3xl font-bold leading-tight">Accede a tu entorno de verificación financiera.</h1>
+              <div className="text-sm uppercase tracking-[0.2em] text-brand-200">Acceso real</div>
+              <h1 className="mt-3 text-3xl font-bold leading-tight">Ingresa con tu cuenta de PayVerify.</h1>
             </div>
-            <p className="text-slate-300">Simulación de comprobantes, sucursales, empleados, riesgos y suscripción con aislamiento por empresa.</p>
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-              <div className="mb-3 flex items-center gap-2 text-sm text-slate-300"><Building2 className="h-4 w-4" />Perfiles demo</div>
-              <div className="space-y-2">
-                {profiles.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setProfile(item)}
-                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left ${profile.id === item.id ? "border-brand-500 bg-brand-500/10" : "border-slate-800 bg-slate-900"}`}
-                  >
-                    <div>
-                      <div className="font-medium text-white">{item.company}</div>
-                      <div className="text-xs text-slate-400">{item.role}</div>
-                    </div>
-                    <div className="text-xs text-slate-300">{item.email}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <p className="text-slate-300">Autenticación con Supabase. La sesión y los permisos se validan contra tu cuenta real y las empresas asociadas.</p>
           </div>
         </div>
 
@@ -58,15 +111,16 @@ export default function LoginPage() {
 
             <div className="space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Perfil seleccionado</label>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">{profile.company} · {profile.name}</div>
-              </div>
-
-              <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">Correo electrónico</label>
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3">
                   <UserCircle2 className="h-4 w-4 text-slate-500" />
-                  <input defaultValue={profile.email} className="w-full bg-transparent py-3 text-sm text-slate-800 outline-none" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="tu@empresa.com"
+                    className="w-full bg-transparent py-3 text-sm text-slate-800 outline-none"
+                  />
                 </div>
               </div>
 
@@ -74,7 +128,13 @@ export default function LoginPage() {
                 <label className="mb-2 block text-sm font-medium text-slate-700">Contraseña</label>
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3">
                   <Lock className="h-4 w-4 text-slate-500" />
-                  <input type={showPassword ? "text" : "password"} defaultValue={profile.password} className="w-full bg-transparent py-3 text-sm text-slate-800 outline-none" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-transparent py-3 text-sm text-slate-800 outline-none"
+                  />
                   <button type="button" onClick={() => setShowPassword((prev) => !prev)} className="p-1 text-slate-500">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
                 </div>
               </div>
@@ -84,13 +144,13 @@ export default function LoginPage() {
                 <a href="#" className="text-brand-600">¿Olvidaste tu contraseña?</a>
               </div>
 
-              <Link href={profile.role === "superadmin" ? "/superadmin" : "/dashboard"} className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-soft">Ingresar <ArrowRight className="h-4 w-4" /></Link>
+              {error && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
+              )}
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                <div className="font-medium text-slate-800">Credenciales demo</div>
-                <div className="mt-2">Email: {profile.email}</div>
-                <div>Contraseña: {profile.password}</div>
-              </div>
+              <button type="button" disabled={isSubmitting} onClick={handleLogin} className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-soft disabled:cursor-not-allowed disabled:opacity-60">
+                {isSubmitting ? "Ingresando..." : "Ingresar"} <ArrowRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </div>

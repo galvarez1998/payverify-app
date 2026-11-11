@@ -1,1 +1,1 @@
-export { AppShell } from "@/frontend/components/app-shell";
+export { AppShell } from "../frontend/components/app-shell";
