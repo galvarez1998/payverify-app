@@ -1,1 +1,1 @@
-export { formatCOP, statusLabel, statusClass } from "@/frontend/lib/utils";
+export { formatCOP, statusLabel, statusClass } from "../frontend/lib/utils";

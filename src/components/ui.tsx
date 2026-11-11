@@ -1,1 +1,1 @@
-export { Card, Metric } from "@/frontend/components/ui";
+export { Card, Metric } from "../frontend/components/ui";

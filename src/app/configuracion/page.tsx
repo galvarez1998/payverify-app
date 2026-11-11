@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui";
 import {
@@ -13,6 +16,15 @@ import {
   Wifi,
   Zap,
 } from "lucide-react";
+
+type Membership = {
+  id: string;
+  user_id: string;
+  role: string;
+  status: string;
+  created_at?: string;
+  user_profiles?: { display_name?: string | null } | null;
+};
 
 const providers = [
   {
@@ -70,7 +82,85 @@ function statusClass(tone: "success" | "warning" | "danger" | "neutral") {
   return map[tone];
 }
 
+const roleOptions = ["company_admin", "branch_manager", "employee", "analyst"];
+const statusOptions = ["active", "invited", "suspended"];
+
 export default function ConfiguracionPage() {
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [invite, setInvite] = useState({ userId: "", role: "employee", status: "active" });
+  const [savingInvite, setSavingInvite] = useState(false);
+
+  async function loadMemberships() {
+    try {
+      const response = await fetch("/api/company-memberships", { cache: "no-store" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.message || payload?.error || "No se pudieron cargar los miembros");
+      setMemberships(Array.isArray(payload.memberships) ? payload.memberships : []);
+      setError(null);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "No se pudieron cargar los miembros");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadMemberships();
+  }, []);
+
+  async function updateMembership(id: string, field: "role" | "status", value: string) {
+    const response = await fetch(`/api/company-memberships/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.message || payload?.error || "No se pudo actualizar el miembro");
+    }
+  }
+
+  async function handleMembershipChange(id: string, field: "role" | "status", value: string) {
+    try {
+      await updateMembership(id, field, value);
+      await loadMemberships();
+    } catch (changeError) {
+      setError(changeError instanceof Error ? changeError.message : "No se pudo actualizar el miembro");
+    }
+  }
+
+  async function handleCreateMembership(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!invite.userId.trim()) {
+      setError("Debes ingresar un userId válido");
+      return;
+    }
+
+    try {
+      setSavingInvite(true);
+      const response = await fetch("/api/company-memberships", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(invite),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.error || "No se pudo agregar el miembro");
+      }
+
+      setInvite({ userId: "", role: "employee", status: "active" });
+      await loadMemberships();
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "No se pudo agregar el miembro");
+    } finally {
+      setSavingInvite(false);
+    }
+  }
+
   return (
     <AppShell active="Configuración">
       <div className="space-y-6">
@@ -93,6 +183,55 @@ export default function ConfiguracionPage() {
               </div>
             </div>
           </div>
+        </Card>
+
+        <Card title="Membresía de la empresa" description="Roles y estado de acceso para cada miembro">
+          {error && <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
+
+          <form onSubmit={handleCreateMembership} className="mb-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-[1.3fr_0.8fr_0.8fr_auto]">
+            <input
+              value={invite.userId}
+              onChange={(event) => setInvite((current) => ({ ...current, userId: event.target.value }))}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+              placeholder="user_id UUID"
+            />
+            <select value={invite.role} onChange={(event) => setInvite((current) => ({ ...current, role: event.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500">
+              {roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
+            </select>
+            <select value={invite.status} onChange={(event) => setInvite((current) => ({ ...current, status: event.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500">
+              {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+            </select>
+            <button type="submit" disabled={savingInvite} className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60">
+              {savingInvite ? "Guardando..." : "Invitar"}
+            </button>
+          </form>
+
+          {loading ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Cargando miembros...</div>
+          ) : memberships.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">No hay miembros asociados.</div>
+          ) : (
+            <div className="space-y-3">
+              {memberships.map((member) => (
+                <div key={member.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="font-semibold text-slate-900">{member.user_profiles?.display_name || member.user_id}</div>
+                      <div className="text-sm text-slate-500">{member.created_at ? new Date(member.created_at).toLocaleString("es-CO") : "Sin fecha"}</div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select value={member.role} onChange={(event) => void handleMembershipChange(member.id, "role", event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500">
+                        {roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
+                      </select>
+                      <select value={member.status} onChange={(event) => void handleMembershipChange(member.id, "status", event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500">
+                        {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         <Card

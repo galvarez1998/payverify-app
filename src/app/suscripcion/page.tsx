@@ -1,65 +1,162 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui";
-import { initialTransactions } from "@/lib/demo-data";
-import { formatCOP } from "@/lib/utils";
-import { Camera, CheckCheck, Download, ImageIcon } from "lucide-react";
 
-export default function ComprobantesPage() {
-  const [status, setStatus] = useState<"confirmado" | "pendiente" | "rechazado">("confirmado");
+function formatCOP(value: number) {
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value || 0);
+}
+
+type Plan = {
+  id: string;
+  key: string;
+  name: string;
+  monthly_price_cop: number;
+  verification_limit: number;
+  branch_limit?: number | null;
+  employee_limit?: number | null;
+};
+
+type Subscription = {
+  id: string;
+  status: string;
+  plan_id?: string | null;
+  plans?: Plan | null;
+};
+
+const statusOptions = ["trialing", "active", "past_due", "cancelled", "suspended"];
+
+export default function SuscripcionPage() {
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [updating, setUpdating] = useState(false);
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      const [subscriptionResponse, plansResponse] = await Promise.all([
+        fetch("/api/subscriptions", { cache: "no-store" }),
+        fetch("/api/plans", { cache: "no-store" }),
+      ]);
+
+      const subscriptionPayload = await subscriptionResponse.json().catch(() => ({}));
+      const plansPayload = await plansResponse.json().catch(() => ({}));
+
+      if (!subscriptionResponse.ok) throw new Error(subscriptionPayload?.message || subscriptionPayload?.error || "No se pudo cargar la suscripción");
+      if (!plansResponse.ok) throw new Error(plansPayload?.message || plansPayload?.error || "No se pudieron cargar los planes");
+
+      setSubscription(subscriptionPayload.subscription ?? null);
+      setPlans(Array.isArray(plansPayload.plans) ? plansPayload.plans : []);
+      setError(null);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "No se pudieron cargar los datos de suscripción");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  async function handleStatusChange(nextStatus: string) {
+    try {
+      setUpdating(true);
+      const response = await fetch("/api/subscriptions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.message || payload?.error || "No se pudo actualizar el estado");
+      setSubscription((current) => ({ ...(current ?? { id: "", status: nextStatus }), status: nextStatus }));
+      await loadData();
+    } catch (changeError) {
+      setError(changeError instanceof Error ? changeError.message : "No se pudo actualizar la suscripción");
+    } finally {
+      setUpdating(false);
+    }
+  }
+
+  async function handlePlanChange(planId: string) {
+    try {
+      setUpdating(true);
+      const response = await fetch("/api/subscriptions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.message || payload?.error || "No se pudo cambiar el plan");
+      await loadData();
+    } catch (changeError) {
+      setError(changeError instanceof Error ? changeError.message : "No se pudo cambiar el plan");
+    } finally {
+      setUpdating(false);
+    }
+  }
+
+  const activePlan = plans.find((plan) => plan.id === subscription?.plan_id) ?? (subscription?.plans ?? null);
+  const monthlyPrice = Number(activePlan?.monthly_price_cop ?? 0);
+  const verificationLimit = Number(activePlan?.verification_limit ?? 0);
 
   return (
-    <AppShell active="Comprobantes">
+    <AppShell active="Suscripción">
       <div className="space-y-6">
-        <Card title="Carga de comprobantes" description="OCR simulado y validación del pago" action={<button onClick={() => setStatus((prev) => (prev === "confirmado" ? "pendiente" : "confirmado"))} className="rounded-xl bg-brand-600 px-3 py-2 text-sm font-medium text-white">Procesar comprobante</button>}>
-          <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6">
-              <div className="flex h-52 items-center justify-center rounded-2xl bg-white">
-                <div className="text-center">
-                  <ImageIcon className="mx-auto h-12 w-12 text-slate-400" />
-                  <div className="mt-3 text-sm text-slate-600">Arrastra un comprobante o súbelo desde tu dispositivo</div>
-                  <button className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"><Camera className="h-4 w-4" />Adjuntar</button>
-                </div>
-              </div>
-            </div>
+        {error && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>}
 
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Monto extraído</div><div className="mt-2 text-xl font-bold text-slate-900">{formatCOP(150000)}</div></div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Banco</div><div className="mt-2 text-xl font-bold text-slate-900">Davivienda</div></div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Fecha</div><div className="mt-2 text-xl font-bold text-slate-900">03/11/2026</div></div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Responsable</div><div className="mt-2 text-xl font-bold text-slate-900">Carlos Pérez</div></div>
+        {loading ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Cargando suscripción...</div>
+        ) : (
+          <>
+            <Card title="Suscripción actual" description="Plan activo y consumo del mes">
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="rounded-2xl border border-slate-200 bg-brand-50 p-4"><div className="text-xs uppercase tracking-[0.2em] text-brand-600">Plan actual</div><div className="mt-3 text-2xl font-bold text-slate-900">{activePlan?.name ?? "Sin plan"}</div></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Costo</div><div className="mt-3 text-2xl font-bold text-slate-900">{formatCOP(monthlyPrice)}</div></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Límite</div><div className="mt-3 text-2xl font-bold text-slate-900">{verificationLimit.toLocaleString("es-CO")}</div></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Estado</div><div className="mt-3 text-2xl font-bold text-slate-900">{subscription?.status ?? "Sin estado"}</div></div>
+              </div>
+            </Card>
+
+            <Card title="Estado y plan" description="Actualiza el estado de la suscripción o cambia el plan activo">
+              <div className="mb-5 grid gap-3 md:grid-cols-5">
+                {statusOptions.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    disabled={updating || subscription?.status === status}
+                    onClick={() => void handleStatusChange(status)}
+                    className={`rounded-xl px-3 py-2 text-sm font-medium ${subscription?.status === status ? "bg-brand-600 text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+                  >
+                    {status}
+                  </button>
+                ))}
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
-                <div className="mb-2 flex items-center justify-between text-sm text-slate-600"><span>Referencia</span><span className="font-medium text-slate-900">REF-1550</span></div>
-                <div className="mb-2 flex items-center justify-between text-sm text-slate-600"><span>Resultado</span><span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${status === "confirmado" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{status.toUpperCase()}</span></div>
-                <div className="flex items-center justify-between text-sm text-slate-600"><span>Validación</span><span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-700"><CheckCheck className="h-3.5 w-3.5" /> Entorno demo</span></div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {plans.map((plan) => (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    disabled={updating || activePlan?.id === plan.id}
+                    onClick={() => void handlePlanChange(plan.id)}
+                    className={`rounded-2xl border p-4 text-left ${activePlan?.id === plan.id ? "border-brand-500 bg-brand-50" : "border-slate-200 bg-slate-50"}`}
+                  >
+                    <div className="text-xs uppercase tracking-[0.2em] text-slate-500">{plan.key}</div>
+                    <div className="mt-3 text-xl font-bold text-slate-900">{plan.name}</div>
+                    <div className="mt-2 text-sm text-slate-600">{formatCOP(plan.monthly_price_cop)}</div>
+                    <div className="mt-1 text-xs text-slate-500">{plan.verification_limit.toLocaleString("es-CO")} verificaciones</div>
+                  </button>
+                ))}
               </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card title="Comprobantes recientes" description="Últimos documentos cargados">
-          <div className="grid gap-4 md:grid-cols-3">
-            {initialTransactions.slice(0, 3).map((item) => (
-              <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="font-semibold text-slate-800">{item.reference}</div>
-                  <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${item.status === "confirmado" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{item.status}</span>
-                </div>
-                <div className="space-y-2 text-sm text-slate-600">
-                  <div className="flex items-center justify-between"><span>Monto</span><span className="font-medium text-slate-900">{formatCOP(item.amount)}</span></div>
-                  <div className="flex items-center justify-between"><span>Fecha</span><span>{item.date}</span></div>
-                  <div className="flex items-center justify-between"><span>Empleado</span><span>{item.employee}</span></div>
-                </div>
-                <button className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700"><Download className="h-3.5 w-3.5" />Ver detalle</button>
-              </div>
-            ))}
-          </div>
-        </Card>
+            </Card>
+          </>
+        )}
       </div>
     </AppShell>
   );

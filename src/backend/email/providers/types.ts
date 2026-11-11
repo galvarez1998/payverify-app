@@ -1,5 +1,3 @@
-import type { EmailProviderId } from "./types";
-
 export type OAuthTokenSet = {
   accessToken: string;
   refreshToken: string | null;

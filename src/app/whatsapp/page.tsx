@@ -1,44 +1,45 @@
-"use client";
-
-import { useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui";
-import { plans } from "@/lib/demo-data";
-import { formatCOP } from "@/lib/utils";
-import { CreditCard, RefreshCcw } from "lucide-react";
+import { getAuthenticatedContext } from "@/backend/auth/context";
+import { getActiveCompanyForUser, listCompanyBranches } from "@/backend/companies/service";
 
-export default function SuscripcionPage() {
-  const [selectedPlan, setSelectedPlan] = useState("Pro");
+export default async function WhatsappPage() {
+  const auth = await getAuthenticatedContext();
+
+  if (!auth.ok) {
+    return (
+      <AppShell active="WhatsApp">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">Debes iniciar sesión para ver el canal de WhatsApp.</div>
+      </AppShell>
+    );
+  }
+
+  const membership = await getActiveCompanyForUser(auth.supabase, auth.user.id);
+  const companyId = membership.data?.company_id;
+
+  if (!companyId) {
+    return (
+      <AppShell active="WhatsApp">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">No hay una empresa activa asociada a esta sesión.</div>
+      </AppShell>
+    );
+  }
+
+  const branchesResult = await listCompanyBranches(auth.supabase, companyId);
+  const branches = branchesResult.data ?? [];
 
   return (
-    <AppShell active="Suscripción">
+    <AppShell active="WhatsApp">
       <div className="space-y-6">
-        <Card title="Suscripción actual" description="Plan activo y consumo del mes">
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-brand-50 p-4"><div className="text-xs uppercase tracking-[0.2em] text-brand-600">Plan actual</div><div className="mt-3 text-2xl font-bold text-slate-900">{selectedPlan}</div></div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Consumo</div><div className="mt-3 text-2xl font-bold text-slate-900">1.840</div></div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Disponibles</div><div className="mt-3 text-2xl font-bold text-slate-900">660</div></div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs uppercase tracking-[0.2em] text-slate-500">Renovación</div><div className="mt-3 text-2xl font-bold text-slate-900">15/12</div></div>
-          </div>
-        </Card>
-
-        <Card title="Planes disponibles" description="Cambio de plan en modo demo" action={<button onClick={() => setSelectedPlan("Crecimiento")} className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-sm font-medium text-white"><RefreshCcw className="h-4 w-4" />Cambiar de plan</button>}>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {plans.map((plan) => (
-              <div key={plan.key} className={`rounded-2xl border p-4 ${selectedPlan === plan.name ? "border-brand-500 bg-brand-50" : "border-slate-200 bg-slate-50"}`}>
-                <div className="flex items-center justify-between">
-                  <div className="text-lg font-semibold text-slate-900">{plan.name}</div>
-                  {selectedPlan === plan.name && <span className="rounded-full bg-brand-500 px-2 py-1 text-[10px] font-semibold text-white">Actual</span>}
-                </div>
-                <div className="mt-3 text-3xl font-black text-slate-900">{formatCOP(plan.price)}</div>
-                <div className="mt-2 text-sm text-slate-500">{plan.verifications} verificaciones</div>
-                <div className="mt-4 space-y-2 text-sm text-slate-600">
-                  <div>{plan.branches}</div>
-                  <div>{plan.employees}</div>
-                </div>
-                <button onClick={() => setSelectedPlan(plan.name)} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"><CreditCard className="h-4 w-4" />Seleccionar</button>
+        <Card title="WhatsApp de operaciones" description="Canales activos para la empresa actual">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {branches.length > 0 ? branches.map((branch: any) => (
+              <div key={branch.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-lg font-semibold text-slate-900">{branch.name}</div>
+                <div className="mt-2 text-sm text-slate-600">{branch.city ?? "Ciudad no registrada"}</div>
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Canal activo</div>
               </div>
-            ))}
+            )) : <div className="text-slate-500">No hay sucursales activas para este canal.</div>}
           </div>
         </Card>
       </div>
