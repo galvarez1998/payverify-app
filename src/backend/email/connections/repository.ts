@@ -65,9 +65,9 @@ export async function saveEmailConnection(input: {
       status: "connected",
       scopes: input.tokens.scopes,
       token_expires_at: input.tokens.expiresAt,
-      auto_sync_enabled: false,
-      updated_by: input.userId,
+      auto_sync_enabled: true,
       last_error_code: null,
+      updated_at: new Date().toISOString(),
     }, { onConflict: "company_id,provider,email_address" })
     .select("id")
     .single();
